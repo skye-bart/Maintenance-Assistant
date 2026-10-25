@@ -1,6 +1,9 @@
 import React, { useMemo, useState } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
+import ShiftHandoverPanel from './ShiftHandoverPanel';
+import DowntimePanel from './DowntimePanel';
+import PMSchedulerPanel from './PMSchedulerPanel';
 import { getFromLocalStorage, saveToLocalStorage } from '../services/localStorageService';
 
 const initialMessages = [
@@ -43,6 +46,7 @@ const buildAssistantReply = (prompt) => {
 const Dashboard = () => {
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState('');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const metrics = useMemo(() => [
     { label: 'Open work orders', value: '18', detail: '+4 this week' },
@@ -62,6 +66,111 @@ const Dashboard = () => {
     'Filter replacement due within 2 shifts',
     'Safety inspection delayed in compressor room'
   ], []);
+
+  const getModuleContent = () => {
+    switch (activeTab) {
+      case 'handover':
+        return <ShiftHandoverPanel />;
+      case 'downtime':
+        return <DowntimePanel />;
+      case 'pm':
+        return <PMSchedulerPanel />;
+      default:
+        return (
+          <>
+            <section className="info-grid">
+              <div className="panel">
+                <div className="panel-header">
+                  <h3>Priority queue</h3>
+                  <span className="muted-pill">Live</span>
+                </div>
+
+                <div className="queue-list">
+                  {queue.map((item) => (
+                    <div key={item.title} className="queue-item">
+                      <div>
+                        <strong>{item.title}</strong>
+                        <span>{item.owner}</span>
+                      </div>
+                      <div className="queue-meta">
+                        <span className={`priority-badge ${item.priority.toLowerCase()}`}>{item.priority}</span>
+                        <small>{item.eta}</small>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="panel">
+                <div className="panel-header">
+                  <h3>Recent alerts</h3>
+                  <span className="muted-pill">Updated</span>
+                </div>
+
+                <ul className="alerts-list">
+                  {alerts.map((alert) => (
+                    <li key={alert}>{alert}</li>
+                  ))}
+                </ul>
+              </div>
+            </section>
+
+            <section className="workspace-grid">
+              <div className="panel chat-panel">
+                <div className="panel-header">
+                  <h3>AI support</h3>
+                  <span className="online-pill">Online</span>
+                </div>
+
+                <div className="chat-log">
+                  {messages.map((message) => (
+                    <div
+                      key={message.id}
+                      className={`chat-bubble ${message.sender === 'user' ? 'user' : 'assistant'}`}
+                    >
+                      {message.text}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="prompt-row">
+                  {quickPrompts.map((prompt) => (
+                    <button
+                      key={prompt}
+                      className="quick-prompt"
+                      onClick={() => setInputValue(prompt)}
+                      type="button"
+                    >
+                      {prompt}
+                    </button>
+                  ))}
+                </div>
+
+                <form className="composer" onSubmit={handleSend}>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={(event) => setInputValue(event.target.value)}
+                    placeholder="Ask the AI about equipment, parts, or work order priority..."
+                  />
+                  <button type="submit" className="primary-button">Send</button>
+                </form>
+              </div>
+
+              <div className="panel">
+                <div className="panel-header">
+                  <h3>Maintenance board</h3>
+                  <span className="muted-pill">Today</span>
+                </div>
+
+                <TaskForm onSubmit={handleTaskSave} />
+                <TaskList />
+              </div>
+            </section>
+          </>
+        );
+    }
+  };
 
   const handleTaskSave = (taskData) => {
     const currentTasks = getFromLocalStorage('tasks') || [];
@@ -112,11 +221,10 @@ const Dashboard = () => {
         </div>
 
         <nav className="nav-list">
-          <button className="nav-button active">Overview</button>
-          <button className="nav-button">Machines</button>
-          <button className="nav-button">Work Orders</button>
-          <button className="nav-button">Downtime</button>
-          <button className="nav-button">PM Tasks</button>
+          <button className={`nav-button ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => setActiveTab('overview')} type="button">Overview</button>
+          <button className={`nav-button ${activeTab === 'handover' ? 'active' : ''}`} onClick={() => setActiveTab('handover')} type="button">Shift Handover</button>
+          <button className={`nav-button ${activeTab === 'downtime' ? 'active' : ''}`} onClick={() => setActiveTab('downtime')} type="button">Downtime</button>
+          <button className={`nav-button ${activeTab === 'pm' ? 'active' : ''}`} onClick={() => setActiveTab('pm')} type="button">PM Tasks</button>
           <button className="nav-button">Reports</button>
         </nav>
 
@@ -167,95 +275,7 @@ const Dashboard = () => {
           ))}
         </section>
 
-        <section className="info-grid">
-          <div className="panel">
-            <div className="panel-header">
-              <h3>Priority queue</h3>
-              <span className="muted-pill">Live</span>
-            </div>
-
-            <div className="queue-list">
-              {queue.map((item) => (
-                <div key={item.title} className="queue-item">
-                  <div>
-                    <strong>{item.title}</strong>
-                    <span>{item.owner}</span>
-                  </div>
-                  <div className="queue-meta">
-                    <span className={`priority-badge ${item.priority.toLowerCase()}`}>{item.priority}</span>
-                    <small>{item.eta}</small>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="panel">
-            <div className="panel-header">
-              <h3>Recent alerts</h3>
-              <span className="muted-pill">Updated</span>
-            </div>
-
-            <ul className="alerts-list">
-              {alerts.map((alert) => (
-                <li key={alert}>{alert}</li>
-              ))}
-            </ul>
-          </div>
-        </section>
-
-        <section className="workspace-grid">
-          <div className="panel chat-panel">
-            <div className="panel-header">
-              <h3>AI support</h3>
-              <span className="online-pill">Online</span>
-            </div>
-
-            <div className="chat-log">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`chat-bubble ${message.sender === 'user' ? 'user' : 'assistant'}`}
-                >
-                  {message.text}
-                </div>
-              ))}
-            </div>
-
-            <div className="prompt-row">
-              {quickPrompts.map((prompt) => (
-                <button
-                  key={prompt}
-                  className="quick-prompt"
-                  onClick={() => setInputValue(prompt)}
-                  type="button"
-                >
-                  {prompt}
-                </button>
-              ))}
-            </div>
-
-            <form className="composer" onSubmit={handleSend}>
-              <input
-                type="text"
-                value={inputValue}
-                onChange={(event) => setInputValue(event.target.value)}
-                placeholder="Ask the AI about equipment, parts, or work order priority..."
-              />
-              <button type="submit" className="primary-button">Send</button>
-            </form>
-          </div>
-
-          <div className="panel">
-            <div className="panel-header">
-              <h3>Maintenance board</h3>
-              <span className="muted-pill">Today</span>
-            </div>
-
-            <TaskForm onSubmit={handleTaskSave} />
-            <TaskList />
-          </div>
-        </section>
+        {getModuleContent()}
       </main>
     </div>
   );
