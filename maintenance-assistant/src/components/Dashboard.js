@@ -4,262 +4,261 @@ import TaskList from './TaskList';
 import { getFromLocalStorage, saveToLocalStorage } from '../services/localStorageService';
 
 const initialMessages = [
-    {
-        id: 1,
-        sender: 'assistant',
-        text: 'Hi! I am your maintenance AI assistant. I can help prioritize work orders, flag downtime risks, and suggest the next action on the floor.'
-    }
+  {
+    id: 1,
+    sender: 'assistant',
+    text: 'Good morning. I am your maintenance AI co-pilot. I can help triage downtime, prioritize work orders, and keep the line moving.'
+  }
 ];
 
 const quickPrompts = [
-    'Check machine uptime',
-    'Prioritize urgent work orders',
-    'Suggest missing parts',
-    'Review maintenance schedule'
+  'Check machine uptime',
+  'Prioritize urgent work',
+  'Review parts inventory',
+  'Plan next shift tasks'
 ];
 
 const buildAssistantReply = (prompt) => {
-    const value = prompt.toLowerCase();
+  const value = prompt.toLowerCase();
 
-    if (value.includes('downtime') || value.includes('machine') || value.includes('uptime')) {
-        return 'I recommend checking the most recent downtime events first. Prioritize machines with repeated failure codes and validate whether the issue is tied to lubrication, heat, or wear before assigning the next maintenance crew.';
-    }
+  if (value.includes('uptime') || value.includes('machine') || value.includes('downtime')) {
+    return 'I would review the top downtime events first and rank them by production impact. Focus on repeat failures, bottleneck equipment, and any issue linked to safety or line stoppage.';
+  }
 
-    if (value.includes('urgent') || value.includes('priority') || value.includes('critical')) {
-        return 'Urgent work should be sequenced by safety risk and production impact. I suggest escalating any issue that blocks output, risks injury, or affects a bottleneck machine before scheduling routine tasks.';
-    }
+  if (value.includes('urgent') || value.includes('priority') || value.includes('critical')) {
+    return 'Escalate safety-critical and bottleneck-driven work before routine tasks. Assign the highest-priority repair to the crew with the shortest response time and best spares coverage.';
+  }
 
-    if (value.includes('parts') || value.includes('inventory') || value.includes('stock')) {
-        return 'Check the on-hand inventory for seals, filters, and conveyor components first. If a critical spare is below the minimum threshold, create a replenishment request and flag the affected asset to maintenance supervision.';
-    }
+  if (value.includes('parts') || value.includes('inventory') || value.includes('stock')) {
+    return 'Check spare seal kits, filters, and conveyor components first. If any critical part is below threshold, raise a replenish request before the next planned shutdown window.';
+  }
 
-    if (value.includes('schedule') || value.includes('planner') || value.includes('next')) {
-        return 'I would schedule preventive checks around the highest-risk equipment and align them with the production calendar. Keep the next planned maintenance window on the bottleneck line and defer low-impact tasks until after the peak run.';
-    }
+  if (value.includes('schedule') || value.includes('shift') || value.includes('next')) {
+    return 'Schedule the highest-risk inspections during the first window of the next shift. Keep routine tasks aligned with production demand and leave room for unplanned safety calls.';
+  }
 
-    return 'I can help with machine uptime, work order priority, parts planning, and daily maintenance scheduling. Tell me what issue or machine needs attention and I will suggest the next best step.';
+  return 'I can help with downtime triage, work-order prioritization, PM planning, and parts readiness. Tell me the machine, shift, or issue and I will suggest the next best action.';
 };
 
 const Dashboard = () => {
-    const [messages, setMessages] = useState(initialMessages);
-    const [inputValue, setInputValue] = useState('');
+  const [messages, setMessages] = useState(initialMessages);
+  const [inputValue, setInputValue] = useState('');
 
-    const metrics = useMemo(() => [
-        { label: 'Open work orders', value: '18', detail: '+4 this week' },
-        { label: 'Critical alerts', value: '3', detail: '2 unresolved' },
-        { label: 'Uptime', value: '94.6%', detail: '+1.4% vs last week' },
-        { label: 'Parts needed', value: '7', detail: '3 urgent' }
-    ], []);
+  const metrics = useMemo(() => [
+    { label: 'Open work orders', value: '18', detail: '+4 this week' },
+    { label: 'Critical alerts', value: '3', detail: '2 unresolved' },
+    { label: 'Uptime', value: '94.6%', detail: '+1.4% vs last week' },
+    { label: 'Parts needed', value: '7', detail: '3 urgent' }
+  ], []);
 
-    const priorityQueue = useMemo(() => [
-        { title: 'Hydraulic press', owner: 'Team A', priority: 'Critical', eta: '08:45' },
-        { title: 'Conveyor line 2', owner: 'Team B', priority: 'High', eta: '10:15' },
-        { title: 'Boiler feed pump', owner: 'Team C', priority: 'Medium', eta: '14:00' }
-    ], []);
+  const queue = useMemo(() => [
+    { title: 'Hydraulic press', owner: 'Team A', priority: 'Critical', eta: '08:45' },
+    { title: 'Conveyor line 2', owner: 'Team B', priority: 'High', eta: '10:15' },
+    { title: 'Boiler feed pump', owner: 'Team C', priority: 'Medium', eta: '14:00' }
+  ], []);
 
-    const alertFeed = useMemo(() => [
-        'Bearing temperature above threshold on Line 3',
-        'Filter replacement due within 2 shifts',
-        'Safety inspection for compressor room is overdue'
-    ], []);
+  const alerts = useMemo(() => [
+    'Bearing temperature above threshold on Line 3',
+    'Filter replacement due within 2 shifts',
+    'Safety inspection delayed in compressor room'
+  ], []);
 
-    const handleTaskSave = (taskData) => {
-        const currentTasks = getFromLocalStorage('tasks') || [];
-        const newTask = {
-            id: Date.now(),
-            title: taskData.taskName,
-            description: taskData.description,
-            dueDate: taskData.dueDate,
-            priority: taskData.priority,
-            status: 'Open'
-        };
-
-        saveToLocalStorage('tasks', [newTask, ...currentTasks]);
-        window.dispatchEvent(new Event('tasks-updated'));
+  const handleTaskSave = (taskData) => {
+    const currentTasks = getFromLocalStorage('tasks') || [];
+    const newTask = {
+      id: Date.now(),
+      title: taskData.taskName,
+      description: taskData.description,
+      dueDate: taskData.dueDate,
+      priority: taskData.priority,
+      status: 'Open'
     };
 
-    const handleSend = (event) => {
-        event.preventDefault();
+    saveToLocalStorage('tasks', [newTask, ...currentTasks]);
+    window.dispatchEvent(new Event('tasks-updated'));
+  };
 
-        const trimmed = inputValue.trim();
-        if (!trimmed) {
-            return;
-        }
+  const handleSend = (event) => {
+    event.preventDefault();
 
-        const userMessage = {
-            id: Date.now(),
-            sender: 'user',
-            text: trimmed
-        };
+    const trimmed = inputValue.trim();
+    if (!trimmed) return;
 
-        const assistantMessage = {
-            id: Date.now() + 1,
-            sender: 'assistant',
-            text: buildAssistantReply(trimmed)
-        };
-
-        setMessages((current) => [...current, userMessage, assistantMessage]);
-        setInputValue('');
+    const userMessage = {
+      id: Date.now(),
+      sender: 'user',
+      text: trimmed
     };
 
-    return (
-        <div className="dashboard-shell">
-            <aside className="sidebar-panel">
-                <div className="brand-block">
-                    <div className="brand-icon">AI</div>
-                    <div>
-                        <p className="eyebrow">Factory Ops</p>
-                        <h2>Maintenance AI</h2>
-                    </div>
-                </div>
+    const assistantMessage = {
+      id: Date.now() + 1,
+      sender: 'assistant',
+      text: buildAssistantReply(trimmed)
+    };
 
-                <nav className="nav-list">
-                    <button className="nav-button active">Overview</button>
-                    <button className="nav-button">Work orders</button>
-                    <button className="nav-button">Equipment</button>
-                    <button className="nav-button">Parts</button>
-                    <button className="nav-button">Reports</button>
-                </nav>
+    setMessages((current) => [...current, userMessage, assistantMessage]);
+    setInputValue('');
+  };
 
-                <div className="sidebar-card">
-                    <p className="card-title">Live status</p>
-                    <div className="status-row">
-                        <span className="status-dot online" />
-                        <span>Assembly line stable</span>
-                    </div>
-                    <div className="status-row">
-                        <span className="status-dot warn" />
-                        <span>Hydraulic press check due</span>
-                    </div>
-                    <div className="status-row">
-                        <span className="status-dot danger" />
-                        <span>Compressor room alert</span>
-                    </div>
-                </div>
-            </aside>
-
-            <main className="main-panel">
-                <header className="topbar">
-                    <div>
-                        <p className="eyebrow">Operations dashboard</p>
-                        <h1>Maintenance Assistant</h1>
-                    </div>
-                    <button className="primary-button">+ New ticket</button>
-                </header>
-
-                <section className="hero-panel">
-                    <div>
-                        <p className="eyebrow accent">AI recommendation</p>
-                        <h2>Schedule the hydraulic press inspection before the next shift change.</h2>
-                    </div>
-                    <div className="hero-score">
-                        <strong>91%</strong>
-                        <span>task confidence</span>
-                    </div>
-                </section>
-
-                <section className="metrics-grid">
-                    {metrics.map((metric) => (
-                        <div className="metric-card" key={metric.label}>
-                            <span>{metric.label}</span>
-                            <strong>{metric.value}</strong>
-                            <small>{metric.detail}</small>
-                        </div>
-                    ))}
-                </section>
-
-                <section className="info-grid">
-                    <div className="panel">
-                        <div className="panel-header">
-                            <h3>Priority queue</h3>
-                            <span className="muted-pill">Live</span>
-                        </div>
-
-                        <div className="queue-list">
-                            {priorityQueue.map((item) => (
-                                <div key={item.title} className="queue-item">
-                                    <div>
-                                        <strong>{item.title}</strong>
-                                        <span>{item.owner}</span>
-                                    </div>
-                                    <div className="queue-meta">
-                                        <span className={`priority-badge ${item.priority.toLowerCase()}`}>{item.priority}</span>
-                                        <small>{item.eta}</small>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    <div className="panel">
-                        <div className="panel-header">
-                            <h3>Recent alerts</h3>
-                            <span className="muted-pill">Updated</span>
-                        </div>
-
-                        <ul className="alerts-list">
-                            {alertFeed.map((alert) => (
-                                <li key={alert}>{alert}</li>
-                            ))}
-                        </ul>
-                    </div>
-                </section>
-
-                <section className="workspace-grid">
-                    <div className="panel chat-panel">
-                        <div className="panel-header">
-                            <h3>AI support</h3>
-                            <span className="online-pill">Online</span>
-                        </div>
-
-                        <div className="chat-log">
-                            {messages.map((message) => (
-                                <div
-                                    key={message.id}
-                                    className={`chat-bubble ${message.sender === 'user' ? 'user' : 'assistant'}`}
-                                >
-                                    {message.text}
-                                </div>
-                            ))}
-                        </div>
-
-                        <div className="prompt-row">
-                            {quickPrompts.map((prompt) => (
-                                <button
-                                    key={prompt}
-                                    className="quick-prompt"
-                                    onClick={() => setInputValue(prompt)}
-                                    type="button"
-                                >
-                                    {prompt}
-                                </button>
-                            ))}
-                        </div>
-
-                        <form className="composer" onSubmit={handleSend}>
-                            <input
-                                type="text"
-                                value={inputValue}
-                                onChange={(event) => setInputValue(event.target.value)}
-                                placeholder="Ask the assistant about downtime, parts, or priorities..."
-                            />
-                            <button type="submit" className="primary-button">Send</button>
-                        </form>
-                    </div>
-
-                    <div className="panel">
-                        <div className="panel-header">
-                            <h3>Maintenance board</h3>
-                            <span className="muted-pill">Today</span>
-                        </div>
-
-                        <TaskForm onSubmit={handleTaskSave} />
-                        <TaskList />
-                    </div>
-                </section>
-            </main>
+  return (
+    <div className="dashboard-shell">
+      <aside className="sidebar-panel">
+        <div className="brand-block">
+          <div className="brand-icon">N</div>
+          <div>
+            <p className="eyebrow">Factory Ops</p>
+            <h2>Nexus Dashboard</h2>
+          </div>
         </div>
-    );
+
+        <nav className="nav-list">
+          <button className="nav-button active">Overview</button>
+          <button className="nav-button">Machines</button>
+          <button className="nav-button">Work Orders</button>
+          <button className="nav-button">Downtime</button>
+          <button className="nav-button">PM Tasks</button>
+          <button className="nav-button">Reports</button>
+        </nav>
+
+        <div className="sidebar-card">
+          <p className="card-title">Live status</p>
+          <div className="status-row">
+            <span className="status-dot online" />
+            <span>Assembly line stable</span>
+          </div>
+          <div className="status-row">
+            <span className="status-dot warn" />
+            <span>Hydraulic press due inspection</span>
+          </div>
+          <div className="status-row">
+            <span className="status-dot danger" />
+            <span>Compressor room alert</span>
+          </div>
+        </div>
+      </aside>
+
+      <main className="main-panel">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">Operations command center</p>
+            <h1>Maintenance AI Hub</h1>
+          </div>
+          <button className="primary-button">+ Create work order</button>
+        </header>
+
+        <section className="hero-panel">
+          <div>
+            <p className="eyebrow accent">AI recommendation</p>
+            <h2>Schedule the hydraulic press inspection before the next shift change.</h2>
+          </div>
+          <div className="hero-score">
+            <strong>91%</strong>
+            <span>risk confidence</span>
+          </div>
+        </section>
+
+        <section className="metrics-grid">
+          {metrics.map((metric) => (
+            <div className="metric-card" key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+              <small>{metric.detail}</small>
+            </div>
+          ))}
+        </section>
+
+        <section className="info-grid">
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Priority queue</h3>
+              <span className="muted-pill">Live</span>
+            </div>
+
+            <div className="queue-list">
+              {queue.map((item) => (
+                <div key={item.title} className="queue-item">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.owner}</span>
+                  </div>
+                  <div className="queue-meta">
+                    <span className={`priority-badge ${item.priority.toLowerCase()}`}>{item.priority}</span>
+                    <small>{item.eta}</small>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Recent alerts</h3>
+              <span className="muted-pill">Updated</span>
+            </div>
+
+            <ul className="alerts-list">
+              {alerts.map((alert) => (
+                <li key={alert}>{alert}</li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        <section className="workspace-grid">
+          <div className="panel chat-panel">
+            <div className="panel-header">
+              <h3>AI support</h3>
+              <span className="online-pill">Online</span>
+            </div>
+
+            <div className="chat-log">
+              {messages.map((message) => (
+                <div
+                  key={message.id}
+                  className={`chat-bubble ${message.sender === 'user' ? 'user' : 'assistant'}`}
+                >
+                  {message.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="prompt-row">
+              {quickPrompts.map((prompt) => (
+                <button
+                  key={prompt}
+                  className="quick-prompt"
+                  onClick={() => setInputValue(prompt)}
+                  type="button"
+                >
+                  {prompt}
+                </button>
+              ))}
+            </div>
+
+            <form className="composer" onSubmit={handleSend}>
+              <input
+                type="text"
+                value={inputValue}
+                onChange={(event) => setInputValue(event.target.value)}
+                placeholder="Ask the AI about equipment, parts, or work order priority..."
+              />
+              <button type="submit" className="primary-button">Send</button>
+            </form>
+          </div>
+
+          <div className="panel">
+            <div className="panel-header">
+              <h3>Maintenance board</h3>
+              <span className="muted-pill">Today</span>
+            </div>
+
+            <TaskForm onSubmit={handleTaskSave} />
+            <TaskList />
+          </div>
+        </section>
+      </main>
+    </div>
+  );
 };
 
 export default Dashboard;
