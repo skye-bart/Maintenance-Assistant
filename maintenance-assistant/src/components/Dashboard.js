@@ -45,10 +45,22 @@ const Dashboard = () => {
     const [inputValue, setInputValue] = useState('');
 
     const metrics = useMemo(() => [
-        { label: 'Open work orders', value: '18' },
-        { label: 'Critical alerts', value: '3' },
-        { label: 'Uptime', value: '94.6%' },
-        { label: 'Parts needed', value: '7' }
+        { label: 'Open work orders', value: '18', detail: '+4 this week' },
+        { label: 'Critical alerts', value: '3', detail: '2 unresolved' },
+        { label: 'Uptime', value: '94.6%', detail: '+1.4% vs last week' },
+        { label: 'Parts needed', value: '7', detail: '3 urgent' }
+    ], []);
+
+    const priorityQueue = useMemo(() => [
+        { title: 'Hydraulic press', owner: 'Team A', priority: 'Critical', eta: '08:45' },
+        { title: 'Conveyor line 2', owner: 'Team B', priority: 'High', eta: '10:15' },
+        { title: 'Boiler feed pump', owner: 'Team C', priority: 'Medium', eta: '14:00' }
+    ], []);
+
+    const alertFeed = useMemo(() => [
+        'Bearing temperature above threshold on Line 3',
+        'Filter replacement due within 2 shifts',
+        'Safety inspection for compressor room is overdue'
     ], []);
 
     const handleTaskSave = (taskData) => {
@@ -119,6 +131,10 @@ const Dashboard = () => {
                         <span className="status-dot warn" />
                         <span>Hydraulic press check due</span>
                     </div>
+                    <div className="status-row">
+                        <span className="status-dot danger" />
+                        <span>Compressor room alert</span>
+                    </div>
                 </div>
             </aside>
 
@@ -147,8 +163,46 @@ const Dashboard = () => {
                         <div className="metric-card" key={metric.label}>
                             <span>{metric.label}</span>
                             <strong>{metric.value}</strong>
+                            <small>{metric.detail}</small>
                         </div>
                     ))}
+                </section>
+
+                <section className="info-grid">
+                    <div className="panel">
+                        <div className="panel-header">
+                            <h3>Priority queue</h3>
+                            <span className="muted-pill">Live</span>
+                        </div>
+
+                        <div className="queue-list">
+                            {priorityQueue.map((item) => (
+                                <div key={item.title} className="queue-item">
+                                    <div>
+                                        <strong>{item.title}</strong>
+                                        <span>{item.owner}</span>
+                                    </div>
+                                    <div className="queue-meta">
+                                        <span className={`priority-badge ${item.priority.toLowerCase()}`}>{item.priority}</span>
+                                        <small>{item.eta}</small>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="panel">
+                        <div className="panel-header">
+                            <h3>Recent alerts</h3>
+                            <span className="muted-pill">Updated</span>
+                        </div>
+
+                        <ul className="alerts-list">
+                            {alertFeed.map((alert) => (
+                                <li key={alert}>{alert}</li>
+                            ))}
+                        </ul>
+                    </div>
                 </section>
 
                 <section className="workspace-grid">
