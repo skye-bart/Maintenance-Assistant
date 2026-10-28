@@ -1,10 +1,11 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import TaskForm from './TaskForm';
 import TaskList from './TaskList';
 import ShiftHandoverPanel from './ShiftHandoverPanel';
 import DowntimePanel from './DowntimePanel';
 import PMSchedulerPanel from './PMSchedulerPanel';
 import { getFromLocalStorage, saveToLocalStorage } from '../services/localStorageService';
+import { getDashboardData } from '../services/apiService';
 
 const initialMessages = [
   {
@@ -19,6 +20,18 @@ const quickPrompts = [
   'Prioritize urgent work',
   'Review parts inventory',
   'Plan next shift tasks'
+];
+
+const fallbackQueue = [
+  { title: 'Hydraulic press', owner: 'Team A', priority: 'Critical', eta: '08:45' },
+  { title: 'Conveyor line 2', owner: 'Team B', priority: 'High', eta: '10:15' },
+  { title: 'Boiler feed pump', owner: 'Team C', priority: 'Medium', eta: '14:00' }
+];
+
+const fallbackAlerts = [
+  'Bearing temperature above threshold on Line 3',
+  'Filter replacement due within 2 shifts',
+  'Safety inspection delayed in compressor room'
 ];
 
 const buildAssistantReply = (prompt) => {
@@ -47,25 +60,56 @@ const Dashboard = () => {
   const [messages, setMessages] = useState(initialMessages);
   const [inputValue, setInputValue] = useState('');
   const [activeTab, setActiveTab] = useState('overview');
+  const [dashboardData, setDashboardData] = useState(null);
 
-  const metrics = useMemo(() => [
-    { label: 'Open work orders', value: '18', detail: '+4 this week' },
-    { label: 'Critical alerts', value: '3', detail: '2 unresolved' },
-    { label: 'Uptime', value: '94.6%', detail: '+1.4% vs last week' },
-    { label: 'Parts needed', value: '7', detail: '3 urgent' }
-  ], []);
+  useEffect(() => {
+    const loadDashboard = async () => {
+      try {
+        const data = await getDashboardData();
+        setDashboardData(data);
+      } catch (error) {
+        console.error('Unable to load dashboard data from API:', error);
+      }
+    };
 
-  const queue = useMemo(() => [
-    { title: 'Hydraulic press', owner: 'Team A', priority: 'Critical', eta: '08:45' },
-    { title: 'Conveyor line 2', owner: 'Team B', priority: 'High', eta: '10:15' },
-    { title: 'Boiler feed pump', owner: 'Team C', priority: 'Medium', eta: '14:00' }
-  ], []);
+    loadDashboard();
+  }, []);
 
-  const alerts = useMemo(() => [
-    'Bearing temperature above threshold on Line 3',
-    'Filter replacement due within 2 shifts',
-    'Safety inspection delayed in compressor room'
-  ], []);
+  const metrics = useMemo(() => {
+    const overview = dashboardData?.overview || {};
+
+    return [
+      { label: 'Open work orders', value: String(overview.open_work_orders ?? 18), detail: '+4 this week' },
+      { label: 'Critical alerts', value: String(overview.critical_alerts ?? 3), detail: 'Live from API' },
+      { label: 'Uptime', value: '94.6%', detail: '+1.4% vs last week' },
+      { label: 'Parts needed', value: String(dashboardData?.alerts?.length ?? 7), detail: '3 urgent' }
+    ];
+  }, [dashboardData]);
+
+  const queue = useMemo(() => {
+    const workOrders = dashboardData?.work_orders || [];
+
+    if (workOrders.length === 0) {
+      return fallbackQueue;
+    }
+
+    return workOrders.slice(0, 3).map((item) => ({
+      title: item.equipment_name || item.title || 'Work order',
+      owner: item.assignee || 'Team',
+      priority: item.priority || 'Medium',
+      eta: item.due_date ? new Date(item.due_date).toLocaleDateString() : 'TBD'
+    }));
+  }, [dashboardData]);
+
+  const alerts = useMemo(() => {
+    const apiAlerts = dashboardData?.alerts || [];
+
+    if (apiAlerts.length === 0) {
+      return fallbackAlerts;
+    }
+
+    return apiAlerts.slice(0, 3).map((alert) => alert.message || alert);
+  }, [dashboardData]);
 
   const getModuleContent = () => {
     switch (activeTab) {
@@ -87,7 +131,7 @@ const Dashboard = () => {
 
                 <div className="queue-list">
                   {queue.map((item) => (
-                    <div key={item.title} className="queue-item">
+                    <div key={`${item.title}-${item.owner}`} className="queue-item">
                       <div>
                         <strong>{item.title}</strong>
                         <span>{item.owner}</span>
