@@ -1,18 +1,33 @@
 from flask import Flask, jsonify
-from pathlib import Path
-from .database import (
-    get_overview,
-    get_equipment,
-    get_work_orders,
-    get_downtime_events,
-    get_pm_tasks,
-    get_handover_logs,
-    get_alerts,
-    init_db,
-    ensure_demo_data,
-)
+from flask_cors import CORS
+
+try:
+    from .database import (
+        get_overview,
+        get_equipment,
+        get_work_orders,
+        get_downtime_events,
+        get_pm_tasks,
+        get_handover_logs,
+        get_alerts,
+        init_db,
+        ensure_demo_data,
+    )
+except ImportError:  # pragma: no cover
+    from database import (
+        get_overview,
+        get_equipment,
+        get_work_orders,
+        get_downtime_events,
+        get_pm_tasks,
+        get_handover_logs,
+        get_alerts,
+        init_db,
+        ensure_demo_data,
+    )
 
 app = Flask(__name__)
+CORS(app)
 
 
 @app.route('/api/health', methods=['GET'])
